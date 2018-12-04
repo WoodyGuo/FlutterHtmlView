@@ -11,8 +11,10 @@ import 'package:video_player/video_player.dart';
 class HtmlParser {
   String baseUrl;
   Function onLaunchFail;
+  final String fontFamily;
+  final bool isForceSize;
 
-  HtmlParser({this.baseUrl, this.onLaunchFail});
+  HtmlParser({this.baseUrl, this.onLaunchFail, this.fontFamily, this.isForceSize});
 
   _parseChildren(dom.Element e, widgetList) {
 //    print(e.localName);
@@ -69,7 +71,9 @@ class HtmlParser {
     } else if (!e.outerHtml.contains("<img") ||
         !e.outerHtml.contains("<video") ||
         !e.hasContent()) {
-      widgetList.add(new HtmlText(data: e.outerHtml, onLaunchFail: this.onLaunchFail));
+      widgetList.add(new HtmlText(data: e.outerHtml,
+        onLaunchFail: this.onLaunchFail, fontFamily: this.fontFamily,
+        isForceSize: this.isForceSize,));
     } else if (e.children.length > 0)
       e.children.forEach((e) => _parseChildren(e, widgetList));
   }
