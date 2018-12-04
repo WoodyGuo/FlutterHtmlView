@@ -7,10 +7,20 @@ class HtmlText extends StatelessWidget {
   final String data;
   final Widget style;
   final Function onLaunchFail;
+  final String fontFamily;
+  final bool isForceSize;
 
   BuildContext ctx;
 
-  HtmlText({this.data, this.style, this.onLaunchFail});
+  HtmlText(
+      {
+        this.data,
+        this.style,
+        this.onLaunchFail,
+        this.fontFamily,
+        this.isForceSize: false,
+      }
+      );
 
   void _launchURL(String url) async {
     try {
@@ -55,7 +65,7 @@ class HtmlText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     ctx = context;
-    HtmlParser parser = new HtmlParser(context);
+    HtmlParser parser = new HtmlParser(context, this.fontFamily, this.isForceSize);
     List nodes = parser.parse(this.data);
 
     TextSpan span = this._stackToTextSpan(nodes, context);
@@ -247,8 +257,10 @@ class HtmlParser {
   List _result = [];
 
   Map<String, dynamic> _tag;
+  final String _fontFamily;
+  final bool _isForceSize;
 
-  HtmlParser(this.context) {
+  HtmlParser(this.context, this._fontFamily, this._isForceSize) {
     this._startTag = new RegExp(
         r'^<([-A-Za-z0-9_]+)((?:\s+[-\w]+(?:\s*=\s*(?:(?:"[^"]*")' +
             "|(?:'[^']*')|[^>\s]+))?)*)\s*(\/?)>");
@@ -515,25 +527,18 @@ class HtmlParser {
       }
     }
 
-    TextStyle textStyle;
+    if (_fontFamily != null && _fontFamily.isNotEmpty
+        && _isForceSize != null && _isForceSize) {
+      fontSize = 16.0;
+    }
 
-    if (fontSize != 0.0) {
-      textStyle = new TextStyle(
-          color: color,
-          fontWeight: fontWeight,
-          fontStyle: fontStyle,
-          decoration: textDecoration,
-          fontSize: fontSize);
-    } else {
-      textStyle = new TextStyle(
+    return new TextStyle(
+        fontFamily: _fontFamily,
         color: color,
         fontWeight: fontWeight,
         fontStyle: fontStyle,
         decoration: textDecoration,
-      );
-    }
-
-    return textStyle;
+        fontSize: fontSize != 0.0 ? fontSize : null);
   }
 
   void _appendTag(String tag, Map attrs) {
