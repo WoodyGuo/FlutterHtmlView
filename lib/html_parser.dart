@@ -13,8 +13,11 @@ class HtmlParser {
   Function onLaunchFail;
   final String fontFamily;
   final bool isForceSize;
+  double fontScale;
+  double paragraphScale;
 
-  HtmlParser({this.baseUrl, this.onLaunchFail, this.fontFamily, this.isForceSize});
+  HtmlParser({this.baseUrl, this.onLaunchFail, this.fontFamily,
+    this.isForceSize, this.fontScale, this.paragraphScale});
 
   _parseChildren(dom.Element e, widgetList) {
 //    print(e.localName);
@@ -73,7 +76,8 @@ class HtmlParser {
         !e.hasContent()) {
       widgetList.add(new HtmlText(data: e.outerHtml,
         onLaunchFail: this.onLaunchFail, fontFamily: this.fontFamily,
-        isForceSize: this.isForceSize,));
+        isForceSize: this.isForceSize,fontScale: this.fontScale,
+        paragraphScale: this.paragraphScale,));
     } else if (e.children.length > 0)
       e.children.forEach((e) => _parseChildren(e, widgetList));
   }

@@ -9,6 +9,8 @@ class HtmlText extends StatelessWidget {
   final Function onLaunchFail;
   final String fontFamily;
   final bool isForceSize;
+  final double fontScale;
+  final double paragraphScale;
 
   BuildContext ctx;
 
@@ -19,6 +21,8 @@ class HtmlText extends StatelessWidget {
         this.onLaunchFail,
         this.fontFamily,
         this.isForceSize: false,
+        this.fontScale,
+        this.paragraphScale,
       }
       );
 
@@ -65,7 +69,8 @@ class HtmlText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     ctx = context;
-    HtmlParser parser = new HtmlParser(context, this.fontFamily, this.isForceSize);
+    HtmlParser parser = new HtmlParser(
+        context, this.fontFamily, this.isForceSize, this.fontScale, this.paragraphScale);
     List nodes = parser.parse(this.data);
 
     TextSpan span = this._stackToTextSpan(nodes, context);
@@ -73,10 +78,13 @@ class HtmlText extends StatelessWidget {
       text: span,
       softWrap: true,
     );
-
     return new Container(
         padding:
-            const EdgeInsets.only(top: 2.0, left: 8.0, right: 8.0, bottom: 2.0),
+             EdgeInsets.only(
+                top: 2.0,
+                left: 8.0,
+                right: 8.0,
+                bottom: 2.0),
         child: contents);
   }
 
@@ -259,8 +267,11 @@ class HtmlParser {
   Map<String, dynamic> _tag;
   final String _fontFamily;
   final bool _isForceSize;
+  final double _fontScale;
+  final double _paragraphScale;
 
-  HtmlParser(this.context, this._fontFamily, this._isForceSize) {
+  HtmlParser(this.context, this._fontFamily, this._isForceSize,
+      this._fontScale, this._paragraphScale) {
     this._startTag = new RegExp(
         r'^<([-A-Za-z0-9_]+)((?:\s+[-\w]+(?:\s*=\s*(?:(?:"[^"]*")' +
             "|(?:'[^']*')|[^>\s]+))?)*)\s*(\/?)>");
@@ -443,8 +454,7 @@ class HtmlParser {
     String value;
 
     TextStyle defaultTextStyle = DefaultTextStyle.of(context).style;
-
-    double fontSize = defaultTextStyle.fontSize;
+    double fontSize = defaultTextStyle.fontSize *_fontScale;
     Color color = defaultTextStyle.color;
     FontWeight fontWeight = defaultTextStyle.fontWeight;
     FontStyle fontStyle = defaultTextStyle.fontStyle;
@@ -452,22 +462,22 @@ class HtmlParser {
 
     switch (tag) {
       case 'h1':
-        fontSize = 32.0;
+        fontSize = 32.0*_fontScale;
         break;
       case 'h2':
-        fontSize = 24.0;
+        fontSize = 24.0*_fontScale;
         break;
       case 'h3':
-        fontSize = 20.8;
+        fontSize = 20.8*_fontScale;
         break;
       case 'h4':
-        fontSize = 16.0;
+        fontSize = 16.0*_fontScale;
         break;
       case 'h5':
-        fontSize = 12.8;
+        fontSize = 12.8*_fontScale;
         break;
       case 'h6':
-        fontSize = 11.2;
+        fontSize = 11.2*_fontScale;
         break;
       case 'a':
         textDecoration = TextDecoration.underline;
@@ -531,8 +541,10 @@ class HtmlParser {
         && _isForceSize != null && _isForceSize) {
       fontSize = 16.0;
     }
-
+debugPrint('defaultTextStyle.height => ${defaultTextStyle.height}');
     return new TextStyle(
+        height: defaultTextStyle.height==null?null:
+        defaultTextStyle.height*_paragraphScale,
         fontFamily: _fontFamily,
         color: color,
         fontWeight: fontWeight,
