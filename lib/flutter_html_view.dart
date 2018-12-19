@@ -93,6 +93,15 @@ class HtmlViewState extends State<HtmlView> {
     });
   }
 
+  void updateData(String data) {
+    if (mounted) {
+      setState(() {
+        this.data = data;
+        nodes = null;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     debugPrint('building HtmlView...');
