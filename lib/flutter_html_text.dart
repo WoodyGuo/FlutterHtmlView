@@ -541,7 +541,6 @@ class HtmlParser {
         && _isForceSize != null && _isForceSize) {
       fontSize = 16.0;
     }
-debugPrint('defaultTextStyle.height => ${defaultTextStyle.height}');
     return new TextStyle(
         height: defaultTextStyle.height==null?null:
         defaultTextStyle.height*_paragraphScale,
