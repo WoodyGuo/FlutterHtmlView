@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_html_view/html_parser.dart';
+import 'package:draggable_scrollbar/draggable_scrollbar.dart';
 
 class HtmlView extends StatefulWidget {
   final String data;
@@ -11,6 +12,7 @@ class HtmlView extends StatefulWidget {
   final double fontScale;
   final double lineSpace;
   final bool needScroll;
+  final ScrollThumbBuilder scrollThumbBuilder;
   final ScrollController controller;
   final List<Widget> tails;
 
@@ -24,6 +26,7 @@ class HtmlView extends StatefulWidget {
       this.fontScale: 1.0,
       this.lineSpace: 1.0,
       this.needScroll: false,
+        this.scrollThumbBuilder,
       this.tails,
       this.controller,
       Key key})
@@ -45,6 +48,7 @@ class HtmlViewState extends State<HtmlView> {
   double fontScale;
   double lineSpace;
   bool needScroll;
+  ScrollThumbBuilder scrollThumbBuilder;
   List<Widget> tails;
   List<Widget> nodes;
   ScrollController _controller;
@@ -61,6 +65,7 @@ class HtmlViewState extends State<HtmlView> {
     this.fontScale = widget.fontScale;
     this.lineSpace = widget.lineSpace;
     this.needScroll = widget.needScroll;
+    this.scrollThumbBuilder = widget.scrollThumbBuilder;
     this.tails = widget.tails;
     this._controller = widget.controller;
     debugPrint('HtmlView initState ...');
@@ -121,14 +126,39 @@ class HtmlViewState extends State<HtmlView> {
     }
 
     return needScroll
-        ? ListView.builder(
+        ? DraggableScrollbar(
+        controller:_controller,
+        backgroundColor: Colors.grey,
+        heightScrollThumb: 40.0,
+        scrollThumbBuilder: scrollThumbBuilder != null?
+        scrollThumbBuilder:(
+            Color backgroundColor,
+            Animation<double> thumbAnimation,
+            Animation<double> labelAnimation,
+            double height, {
+              Text labelText,
+              BoxConstraints labelConstraints,
+            }) {
+          return FadeTransition(
+              opacity: thumbAnimation,
+              child: Container(
+                height: height,
+                width: 10.0,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10.0),
+                  color: backgroundColor,
+                ),
+              ),
+          );
+        },
+        child:ListView.builder(
             controller: _controller,
             padding: padding,
             itemBuilder: (context, index) {
               return nodes[index];
             },
             itemCount: nodes.length,
-          )
+          ))
         : new Container(
             color: Colors.transparent,
             width: double.infinity,

@@ -11,6 +11,7 @@ dependencies:
   html: ^0.13.3+3
   video_player: "^0.7.2"
   cached_network_image: "^0.5.0+1"
+  draggable_scrollbar: "^0.0.4"
 
 
 environment:
