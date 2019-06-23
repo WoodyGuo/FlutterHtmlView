@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_custom_tabs/flutter_custom_tabs.dart' as cTab;
+import 'package:flutter_html_view/flutter_html_view.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class HtmlText extends StatelessWidget {
@@ -11,6 +12,7 @@ class HtmlText extends StatelessWidget {
   final bool isForceSize;
   final double fontScale;
   final double paragraphScale;
+  final BuildTextSpanWidget buildTextSpanWidget;
 
   BuildContext ctx;
 
@@ -23,6 +25,7 @@ class HtmlText extends StatelessWidget {
         this.isForceSize: false,
         this.fontScale,
         this.paragraphScale,
+        this.buildTextSpanWidget,
       }
       );
 
@@ -74,10 +77,15 @@ class HtmlText extends StatelessWidget {
     List nodes = parser.parse(this.data);
 
     TextSpan span = this._stackToTextSpan(nodes, context);
-    RichText contents = new RichText(
-      text: span,
-      softWrap: true,
-    );
+    var contents;
+    if (buildTextSpanWidget != null) {
+      contents = buildTextSpanWidget(span);
+    } else {
+      contents = new RichText(
+        text: span,
+        softWrap: true,
+      );
+    }
     return new Container(
         padding:
              EdgeInsets.only(

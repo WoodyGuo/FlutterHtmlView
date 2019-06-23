@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_html_view/html_parser.dart';
 import 'package:draggable_scrollbar/draggable_scrollbar.dart';
+import 'package:flutter_html_view/html_parser.dart';
+
+/// 返回需要包装的组件
+typedef BuildTextSpanWidget = Widget Function(TextSpan textSpan);
 
 class HtmlView extends StatefulWidget {
   final String data;
@@ -15,6 +18,7 @@ class HtmlView extends StatefulWidget {
   final ScrollThumbBuilder scrollThumbBuilder;
   final ScrollController controller;
   final List<Widget> tails;
+  final BuildTextSpanWidget buildTextSpanWidget;
 
   HtmlView(
       {this.data,
@@ -26,9 +30,10 @@ class HtmlView extends StatefulWidget {
       this.fontScale: 1.0,
       this.lineSpace: 1.0,
       this.needScroll: false,
-        this.scrollThumbBuilder,
+      this.scrollThumbBuilder,
       this.tails,
       this.controller,
+      this.buildTextSpanWidget,
       Key key})
       : super(key: key);
 
@@ -110,13 +115,15 @@ class HtmlViewState extends State<HtmlView> {
   @override
   Widget build(BuildContext context) {
     debugPrint('building HtmlView...');
-    HtmlParser htmlParser = new HtmlParser(
-        baseUrl: this.baseURL,
-        onLaunchFail: this.onLaunchFail,
-        fontFamily: this.fontFamily,
-        isForceSize: this.isForceSize,
-        fontScale: this.fontScale,
-        paragraphScale: this.lineSpace);
+    HtmlParser htmlParser = HtmlParser(
+      baseUrl: this.baseURL,
+      onLaunchFail: this.onLaunchFail,
+      fontFamily: this.fontFamily,
+      isForceSize: this.isForceSize,
+      fontScale: this.fontScale,
+      paragraphScale: this.lineSpace,
+      buildTextSpanWidget: widget.buildTextSpanWidget,
+    );
     if (nodes == null) {
       debugPrint('creating nodes... tails length: ${tails?.length}');
       nodes = htmlParser.parseHTML(this.data);
@@ -127,38 +134,39 @@ class HtmlViewState extends State<HtmlView> {
 
     return needScroll
         ? DraggableScrollbar(
-        controller:_controller,
-        backgroundColor: Colors.grey,
-        heightScrollThumb: 40.0,
-        scrollThumbBuilder: scrollThumbBuilder != null?
-        scrollThumbBuilder:(
-            Color backgroundColor,
-            Animation<double> thumbAnimation,
-            Animation<double> labelAnimation,
-            double height, {
-              Text labelText,
-              BoxConstraints labelConstraints,
-            }) {
-          return FadeTransition(
-              opacity: thumbAnimation,
-              child: Container(
-                height: height,
-                width: 10.0,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10.0),
-                  color: backgroundColor,
-                ),
-              ),
-          );
-        },
-        child:ListView.builder(
             controller: _controller,
-            padding: padding,
-            itemBuilder: (context, index) {
-              return nodes[index];
-            },
-            itemCount: nodes.length,
-          ))
+            backgroundColor: Colors.grey,
+            heightScrollThumb: 40.0,
+            scrollThumbBuilder: scrollThumbBuilder != null
+                ? scrollThumbBuilder
+                : (
+                    Color backgroundColor,
+                    Animation<double> thumbAnimation,
+                    Animation<double> labelAnimation,
+                    double height, {
+                    Text labelText,
+                    BoxConstraints labelConstraints,
+                  }) {
+                    return FadeTransition(
+                      opacity: thumbAnimation,
+                      child: Container(
+                        height: height,
+                        width: 10.0,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10.0),
+                          color: backgroundColor,
+                        ),
+                      ),
+                    );
+                  },
+            child: ListView.builder(
+              controller: _controller,
+              padding: padding,
+              itemBuilder: (context, index) {
+                return nodes[index];
+              },
+              itemCount: nodes.length,
+            ))
         : new Container(
             color: Colors.transparent,
             width: double.infinity,
