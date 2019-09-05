@@ -4,6 +4,8 @@ import 'package:flutter_custom_tabs/flutter_custom_tabs.dart' as cTab;
 import 'package:flutter_html_view/flutter_html_view.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+typedef TapGestureRecognizer createTapGestureRecognizer(String url);
+
 class HtmlText extends StatelessWidget {
   final String data;
   final Widget style;
@@ -16,18 +18,16 @@ class HtmlText extends StatelessWidget {
 
   BuildContext ctx;
 
-  HtmlText(
-      {
-        this.data,
-        this.style,
-        this.onLaunchFail,
-        this.fontFamily,
-        this.isForceSize: false,
-        this.fontScale,
-        this.paragraphScale,
-        this.buildTextSpanWidget,
-      }
-      );
+  HtmlText({
+    this.data,
+    this.style,
+    this.onLaunchFail,
+    this.fontFamily,
+    this.isForceSize: false,
+    this.fontScale,
+    this.paragraphScale,
+    this.buildTextSpanWidget,
+  });
 
   void _launchURL(String url) async {
     try {
@@ -58,7 +58,7 @@ class HtmlText extends StatelessWidget {
     }
   }
 
-  TapGestureRecognizer recognizer(String url) {
+  TapGestureRecognizer createTapGestureRecognizer(String url) {
     return new TapGestureRecognizer()
       ..onTap = () {
         if (url.startsWith("http://") || url.startsWith("https://")) {
@@ -76,7 +76,7 @@ class HtmlText extends StatelessWidget {
         context, this.fontFamily, this.isForceSize, this.fontScale, this.paragraphScale);
     List nodes = parser.parse(this.data);
 
-    TextSpan span = this._stackToTextSpan(nodes, context);
+    TextSpan span = parser.stackToTextSpan(context, nodes, createTapGestureRecognizer);
     var contents;
     if (buildTextSpanWidget != null) {
       contents = buildTextSpanWidget(span);
@@ -87,49 +87,7 @@ class HtmlText extends StatelessWidget {
       );
     }
     return new Container(
-        padding:
-             EdgeInsets.only(
-                top: 2.0,
-                left: 8.0,
-                right: 8.0,
-                bottom: 2.0),
-        child: contents);
-  }
-
-  TextSpan _stackToTextSpan(List nodes, BuildContext context) {
-    List<TextSpan> children = <TextSpan>[];
-
-    for (int i = 0; i < nodes.length; i++) {
-      children.add(_textSpan(nodes[i]));
-    }
-
-    return new TextSpan(
-        text: '',
-        style: DefaultTextStyle.of(context).style,
-        children: children);
-  }
-
-  TextSpan _textSpan(Map node) {
-    TextSpan span;
-    String s = node['text'];
-
-    s = s.replaceAll('\u00A0', ' ');
-    s = s.replaceAll('&nbsp;', ' ');
-    s = s.replaceAll('&amp;', '&');
-    s = s.replaceAll('&lt;', '<');
-    s = s.replaceAll('&gt;', '>');
-
-    if (node['tag'] == 'a') {
-      span = new TextSpan(
-          text: s, style: node['style'], recognizer: recognizer(node['href']));
-    } else {
-      span = new TextSpan(
-        text: s,
-        style: node['style'],
-      );
-    }
-
-    return span;
+        padding: EdgeInsets.only(top: 2.0, left: 8.0, right: 8.0, bottom: 2.0), child: contents);
   }
 }
 
@@ -278,15 +236,13 @@ class HtmlParser {
   final double _fontScale;
   final double _paragraphScale;
 
-  HtmlParser(this.context, this._fontFamily, this._isForceSize,
-      this._fontScale, this._paragraphScale) {
-    this._startTag = new RegExp(
-        r'^<([-A-Za-z0-9_]+)((?:\s+[-\w]+(?:\s*=\s*(?:(?:"[^"]*")' +
-            "|(?:'[^']*')|[^>\s]+))?)*)\s*(\/?)>");
+  HtmlParser(
+      this.context, this._fontFamily, this._isForceSize, this._fontScale, this._paragraphScale) {
+    this._startTag = new RegExp(r'^<([-A-Za-z0-9_]+)((?:\s+[-\w]+(?:\s*=\s*(?:(?:"[^"]*")' +
+        "|(?:'[^']*')|[^>\s]+))?)*)\s*(\/?)>");
     this._endTag = new RegExp("^<\/([-A-Za-z0-9_]+)[^>]*>");
-    this._attr = new RegExp(
-        r'([-A-Za-z0-9_]+)(?:\s*=\s*(?:(?:"((?:\\.|[^"])*)")' +
-            r"|(?:'((?:\\.|[^'])*)')|([^>\s]+)))?");
+    this._attr = new RegExp(r'([-A-Za-z0-9_]+)(?:\s*=\s*(?:(?:"((?:\\.|[^"])*)")' +
+        r"|(?:'((?:\\.|[^'])*)')|([^>\s]+)))?");
     this._style = new RegExp(r'([a-zA-Z\-]+)\s*:\s*([^;]*)');
     this._color = new RegExp(r'^#([a-fA-F0-9]{6})$');
   }
@@ -349,8 +305,7 @@ class HtmlParser {
           this._appendNode(text);
         }
       } else {
-        RegExp re =
-            new RegExp(r'(.*)<\/' + this._getStackLastItem() + r'[^>]*>');
+        RegExp re = new RegExp(r'(.*)<\/' + this._getStackLastItem() + r'[^>]*>');
 
         html = html.replaceAllMapped(re, (Match match) {
           String text = match[0]
@@ -388,14 +343,13 @@ class HtmlParser {
     tagName = tagName.toLowerCase();
 
     if (this._blockTags.contains(tagName)) {
-      while (this._getStackLastItem() != null &&
-          this._inlineTags.contains(this._getStackLastItem())) {
+      while (
+          this._getStackLastItem() != null && this._inlineTags.contains(this._getStackLastItem())) {
         this._parseEndTag(this._getStackLastItem());
       }
     }
 
-    if (this._closeSelfTags.contains(tagName) &&
-        this._getStackLastItem() == tagName) {
+    if (this._closeSelfTags.contains(tagName) && this._getStackLastItem() == tagName) {
       this._parseEndTag(tagName);
     }
 
@@ -462,7 +416,7 @@ class HtmlParser {
     String value;
 
     TextStyle defaultTextStyle = DefaultTextStyle.of(context).style;
-    double fontSize = defaultTextStyle.fontSize *_fontScale;
+    double fontSize = defaultTextStyle.fontSize * _fontScale;
     Color color = defaultTextStyle.color;
     FontWeight fontWeight = defaultTextStyle.fontWeight;
     FontStyle fontStyle = defaultTextStyle.fontStyle;
@@ -470,22 +424,22 @@ class HtmlParser {
 
     switch (tag) {
       case 'h1':
-        fontSize = 32.0*_fontScale;
+        fontSize = 32.0 * _fontScale;
         break;
       case 'h2':
-        fontSize = 24.0*_fontScale;
+        fontSize = 24.0 * _fontScale;
         break;
       case 'h3':
-        fontSize = 20.8*_fontScale;
+        fontSize = 20.8 * _fontScale;
         break;
       case 'h4':
-        fontSize = 16.0*_fontScale;
+        fontSize = 16.0 * _fontScale;
         break;
       case 'h5':
-        fontSize = 12.8*_fontScale;
+        fontSize = 12.8 * _fontScale;
         break;
       case 'h6':
-        fontSize = 11.2*_fontScale;
+        fontSize = 11.2 * _fontScale;
         break;
       case 'a':
         textDecoration = TextDecoration.underline;
@@ -524,34 +478,29 @@ class HtmlParser {
             break;
 
           case 'font-weight':
-            fontWeight =
-                (value == 'bold') ? FontWeight.bold : FontWeight.normal;
+            fontWeight = (value == 'bold') ? FontWeight.bold : FontWeight.normal;
 
             break;
 
           case 'font-style':
-            fontStyle =
-                (value == 'italic') ? FontStyle.italic : FontStyle.normal;
+            fontStyle = (value == 'italic') ? FontStyle.italic : FontStyle.normal;
 
             break;
 
           case 'text-decoration':
-            textDecoration = (value == 'underline')
-                ? TextDecoration.underline
-                : TextDecoration.none;
+            textDecoration =
+                (value == 'underline') ? TextDecoration.underline : TextDecoration.none;
 
             break;
         }
       }
     }
 
-    if (_fontFamily != null && _fontFamily.isNotEmpty
-        && _isForceSize != null && _isForceSize) {
+    if (_fontFamily != null && _fontFamily.isNotEmpty && _isForceSize != null && _isForceSize) {
       fontSize = 16.0;
     }
     return new TextStyle(
-        height: defaultTextStyle.height==null?null:
-        defaultTextStyle.height*_paragraphScale,
+        height: defaultTextStyle.height == null ? null : defaultTextStyle.height * _paragraphScale,
         fontFamily: _fontFamily,
         color: color,
         fontWeight: fontWeight,
@@ -571,8 +520,7 @@ class HtmlParser {
 
     this._tag['text'] = text;
     this._tag['style'] = this._parseStyle(this._tag['tag'], this._tag['attrs']);
-    this._tag['href'] =
-        (this._tag['attrs']['href'] != null) ? this._tag['attrs']['href'] : '';
+    this._tag['href'] = (this._tag['attrs']['href'] != null) ? this._tag['attrs']['href'] : '';
 
     this._tag.remove('attrs');
 
@@ -587,5 +535,50 @@ class HtmlParser {
     }
 
     return this._stack[this._stack.length - 1];
+  }
+
+  List<TextSpan> getToTextSpanWithNodesList(
+      BuildContext context, List nodes, Function createTapGestureRecognizer) {
+    List<TextSpan> children = <TextSpan>[];
+
+    int count = nodes.length;
+
+    for (int i = 0; i < count; i++) {
+      children.add(textSpan(nodes[i], createTapGestureRecognizer));
+    }
+    return children;
+  }
+
+  TextSpan stackToTextSpan(BuildContext context, List nodes, Function createTapGestureRecognizer) {
+    List<TextSpan> children =
+        getToTextSpanWithNodesList(context, nodes, createTapGestureRecognizer);
+
+    return new TextSpan(text: '', style: DefaultTextStyle.of(context).style, children: children);
+  }
+
+  TextSpan textSpan(Map node, Function createTapGestureRecognizer) {
+    TextSpan span;
+    String s = node['text'];
+
+    s = s.replaceAll('\u00A0', ' ');
+    s = s.replaceAll('&nbsp;', ' ');
+    s = s.replaceAll('&amp;', '&');
+    s = s.replaceAll('&lt;', '<');
+    s = s.replaceAll('&gt;', '>');
+
+    if (node['tag'] == 'a') {
+      span = TextSpan(
+          text: s,
+          style: node['style'],
+          recognizer:
+              createTapGestureRecognizer == null ? null : createTapGestureRecognizer(node['href']));
+    } else {
+      span = TextSpan(
+        text: s,
+        style: node['style'],
+      );
+    }
+
+    return span;
   }
 }
