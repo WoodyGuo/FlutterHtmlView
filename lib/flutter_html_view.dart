@@ -251,10 +251,20 @@ class HtmlViewState extends State<HtmlView> {
           if (widget.readScreenPageDelegate != null) {
             widget.readScreenPageDelegate.onChangePageCount(pageCount);
           }
-          //实际的页数
-          int pageIndex = _getPageIndexCheckChapter(
-              ((pageCount - (_pageIndexProgress >= 1.0 ? 1 : 0)) * _pageIndexProgress).round()
-          );
+          //实际的页数 里面包含兼容问题偏移值 如果 _pageIndexProgress > 1 说明是兼容数据
+          int pageIndex;
+          if (_pageIndexProgress > 1) {
+            // 这里是兼容数据 _pageIndexProgress 值代表滑动距离 用互动距离 / 文字高度 约等于 当前值
+            int tempIndex = (_pageIndexProgress / _pageHeight).round();
+            if (tempIndex > pageCount - 1) {
+              tempIndex = pageCount - 1;
+            }
+            pageIndex = _getPageIndexCheckChapter(tempIndex);
+          } else {
+            pageIndex = _getPageIndexCheckChapter(
+                ((pageCount - (_pageIndexProgress >= 1.0 ? 1 : 0)) * _pageIndexProgress).round()
+            );
+          }
 
           debugPrint('$_tag, 当前显示页数 : $pageIndex, progress : $_pageIndexProgress');
           if (_pageController == null) {
