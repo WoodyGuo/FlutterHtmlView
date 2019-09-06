@@ -194,7 +194,7 @@ class HtmlViewState extends State<HtmlView> {
       builder: (context, constraints) {
         if (_pageWidth == null || _pageHeight == null) {
           _pageWidth = constraints.biggest.width;
-          _pageHeight = constraints.biggest.height;
+          _pageHeight = constraints.biggest.height - 20;
         }
 
         debugPrint('building HtmlView... _pageWidth : $_pageWidth, _pageHeight : $_pageHeight');
@@ -262,8 +262,7 @@ class HtmlViewState extends State<HtmlView> {
             pageIndex = _getPageIndexCheckChapter(tempIndex);
           } else {
             pageIndex = _getPageIndexCheckChapter(
-                ((pageCount - (_pageIndexProgress >= 1.0 ? 1 : 0)) * _pageIndexProgress).round()
-            );
+                ((pageCount - (_pageIndexProgress >= 1.0 ? 1 : 0)) * _pageIndexProgress).round());
           }
 
           debugPrint('$_tag, 当前显示页数 : $pageIndex, progress : $_pageIndexProgress');
@@ -378,12 +377,12 @@ class HtmlViewState extends State<HtmlView> {
       textDirection: TextDirection.ltr,
     );
 
-    debugPrint('$_tag 获得字体大小 ${textSpan.style.fontSize}');
+//    debugPrint('$_tag 获得字体大小 ${textSpan.style.fontSize}');
 
     String text = textSpan.text;
     if (_layout(text, textSpan.style, textPainter, offsetY)) {
       // 未超出
-      debugPrint('$_tag 当前页数能够放下这个数据 : $text, 返回便宜高度 ${offsetY + textPainter.size.height}');
+      debugPrint('$_tag 当前页数能够放下这个数据 : $text, 返回偏移高度 ${offsetY + textPainter.size.height}');
       // 在这里添加\n 和 换行 补差
       childrenTextSpanList.add(TextSpan(text: '${textSpan.text}\n', style: textSpan.style));
       return [
@@ -396,14 +395,13 @@ class HtmlViewState extends State<HtmlView> {
       // 溢出了
       List<String> textList = text.split(' ');
       int start = 0;
-      int end = textList.length;
+      int end = min(textList.length, 200);
       int mid = (end + start) ~/ 2;
 
       // 最多循环20次
       for (int i = 0; i < 20; i++) {
         debugPrint('$_tag 当前页数放不下这个数据检查 i : $i , start : $start, end: $end, mid : $mid');
-        if (_layout(text.substring(0, _getLengthWithMid(textList, mid)), textSpan.style,
-            textPainter, offsetY)) {
+        if (_layout(text.substring(0, _getLengthWithMid(textList, mid)), textSpan.style, textPainter, offsetY)) {
           if (mid <= start || mid >= end) {
             break;
           }
@@ -419,17 +417,18 @@ class HtmlViewState extends State<HtmlView> {
         }
       }
       debugPrint('$_tag 当前页数放不下这个数据 : $text, start : $start, end: $end, mid : $mid');
-      debugPrint('$_tag 截取字数: $mid, 文案 ${text.substring(0, _getLengthWithMid(textList, mid))}');
+      debugPrint('$_tag 截取字数: $mid, 文案 ${text.substring(0, mid)}');
+
+      int subTextIndex = _getLengthWithMid(textList, mid);
+      String subText = text.substring(0, subTextIndex);
+      debugPrint('$_tag 截取修改查询文案 $subText');
       if (mid != 0) {
-        childrenTextSpanList.add(TextSpan(
-            text: text.substring(0, _getLengthWithMid(textList, mid)), style: textSpan.style));
+        childrenTextSpanList.add(TextSpan(text: subText, style: textSpan.style));
       }
-      debugPrint('$_tag 剩余内容文案 : ${text.substring(_getLengthWithMid(textList, mid))}');
-      return _onMeasure(
-          TextSpan(
-              text: text.substring(_getLengthWithMid(textList, mid)).trim(), style: textSpan.style),
-          null,
-          0);
+
+      String otherText = text.substring(subTextIndex);
+      debugPrint('$_tag 剩余内容文案 : $otherText');
+      return _onMeasure(TextSpan(text: otherText.trim(), style: textSpan.style), null, 0);
     }
   }
 
@@ -462,6 +461,19 @@ class HtmlViewState extends State<HtmlView> {
       } else {
         length += textLength + 1;
       }
+
+//    int count = textList.length;
+//    for (int i = 0; i < count; ++i) {
+//      int textLength = textList[i].length;
+//      if (i == 0) {
+//        length = textLength;
+//      } else {
+//        length += textLength + 1;
+//      }
+//      if (length > mid) {
+//        length = length - textLength - (i == 0 ? 0 : 1);
+//        break;
+//      }
     }
     return length;
   }
