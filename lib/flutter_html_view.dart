@@ -88,6 +88,13 @@ class HtmlViewState extends State<HtmlView> {
   /// 页数百分比
   double _pageIndexProgress;
 
+  /// 是否预览改变字体行间距
+  bool _isPreviewFont = false;
+
+  /// 用来保存首次进入的值
+  double _saveFontScale;
+  double _saveLineSpace;
+
   @override
   void initState() {
     super.initState();
@@ -98,6 +105,8 @@ class HtmlViewState extends State<HtmlView> {
     this.fontFamily = widget.fontFamily;
     this.isForceSize = widget.isForceSize;
     this.fontScale = widget.fontScale;
+    _saveFontScale = widget.fontScale;
+    _saveLineSpace = widget.lineSpace;
     this.lineSpace = widget.lineSpace;
     this.needScroll = widget.needScroll;
     this.scrollThumbBuilder = widget.scrollThumbBuilder;
@@ -117,13 +126,25 @@ class HtmlViewState extends State<HtmlView> {
   /// 改变
   void onChangeDarkThem() {
     setState(() {
-      nodes = null;
+//      nodes = null;
     });
   }
 
-  void updateFont({double fontScale, double lineSpace}) {
+  void updateFont({double fontScale, double lineSpace, bool isPreviewFont}) {
+    debugPrint(
+        '$_tag, fontScale : $fontScale, lineSpace : $lineSpace, isPreviewFont $isPreviewFont');
     setState(() {
-      nodes = null;
+      _isPreviewFont = isPreviewFont;
+
+      if (!isPreviewFont || !_isPageMode) {
+        nodes = null;
+        if (fontScale != null) {
+          _saveFontScale = fontScale;
+        }
+        if (lineSpace != null) {
+          _saveLineSpace = lineSpace;
+        }
+      }
       if (fontScale != null) {
         this.fontScale = fontScale;
       }
@@ -287,7 +308,36 @@ class HtmlViewState extends State<HtmlView> {
                   // 加载视图
                   return _getPlatformLoadingIndicator(context);
                 } else {
-                  TextSpan textSpan = _textSpanList[index - (isLastChapter ? 1 : 0)];
+                  TextSpan textSpanRootTemp = _textSpanList[index - (isLastChapter ? 1 : 0)];
+                  List<TextSpan> tempTextSpanList = [];
+//                  if (_isPreviewFont) {
+                  int count = textSpanRootTemp.children.length;
+                  Color color = DefaultTextStyle.of(context).style.color;
+
+                  for (int i = 0; i < count; ++i) {
+                    TextSpan tempTextSpan = textSpanRootTemp.children[i];
+                    TextStyle tempTextSpanStyle = tempTextSpan.style;
+                    tempTextSpanList.add(TextSpan(
+                      text: tempTextSpan.text,
+                      style: TextStyle(
+                        height: tempTextSpanStyle.height == null ? null : _isPreviewFont
+                            ? tempTextSpanStyle.height / _saveLineSpace * lineSpace
+                            : tempTextSpanStyle.height,
+                          fontFamily: tempTextSpanStyle.fontFamily,
+                          color: color,
+                          fontWeight: tempTextSpanStyle.fontWeight,
+                          fontStyle: tempTextSpanStyle.fontStyle,
+                          decoration: tempTextSpanStyle.decoration,
+                          fontSize: _isPreviewFont
+                              ? tempTextSpanStyle.fontSize / _saveFontScale * fontScale
+                              : tempTextSpanStyle.fontSize),
+                    ));
+                  }
+
+                  TextSpan textSpan = TextSpan(children: tempTextSpanList);
+
+//                  }
+
                   return Container(
                     width: double.infinity,
                     height: double.infinity,
@@ -395,13 +445,14 @@ class HtmlViewState extends State<HtmlView> {
       // 溢出了
       List<String> textList = text.split(' ');
       int start = 0;
-      int end = min(textList.length, 200);
+      int end = min(textList.length, (200 * ((3 - fontScale) + (3 - lineSpace))).floor());
       int mid = (end + start) ~/ 2;
 
       // 最多循环20次
       for (int i = 0; i < 20; i++) {
         debugPrint('$_tag 当前页数放不下这个数据检查 i : $i , start : $start, end: $end, mid : $mid');
-        if (_layout(text.substring(0, _getLengthWithMid(textList, mid)), textSpan.style, textPainter, offsetY)) {
+        if (_layout(text.substring(0, _getLengthWithMid(textList, mid)), textSpan.style,
+            textPainter, offsetY)) {
           if (mid <= start || mid >= end) {
             break;
           }
