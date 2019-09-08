@@ -346,6 +346,11 @@ class HtmlViewState extends State<HtmlView> {
 
           bool isLastChapter = widget.readScreenPageDelegate.isLastChapter();
           bool isNextChapter = widget.readScreenPageDelegate.isNextChapter();
+          // pageCount 实际个数需要加上上一页和下一页的loading界面
+
+          debugPrint('$_tag, isLastChapter : $isLastChapter, isNextChapter : $isNextChapter');
+          pageCount = pageCount + (isLastChapter ? 1 : 0) + (isNextChapter ? 1 : 0);
+          debugPrint('$_tag, 实际读书页数 加上上一页下一页 : $pageCount');
 
           if (_pageController == null) {
             if (pageIndex == 0 && isLastChapter) {
@@ -356,11 +361,6 @@ class HtmlViewState extends State<HtmlView> {
             _pageController = PageController(initialPage: pageIndex);
           }
 
-          // pageCount 实际个数需要加上上一页和下一页的loading界面
-
-          debugPrint('$_tag, isLastChapter : $isLastChapter, isNextChapter : $isNextChapter');
-          pageCount = pageCount + (isLastChapter ? 1 : 0) + (isNextChapter ? 1 : 0);
-          debugPrint('$_tag, 实际读书页数 加上上一页下一页 : $pageCount');
 
           return Container(
 //            color: Colors.red,
