@@ -13,4 +13,6 @@ abstract class ReadScreenPageDelegate {
   void toLastChapter();
   /// 跳转下一章节的第一页
   void toNextChapter();
+  /// 加载
+  void onChangeLoadingState(bool isLoading);
 }

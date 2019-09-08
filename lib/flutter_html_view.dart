@@ -1,10 +1,15 @@
+import 'dart:async';
+import 'dart:io';
+import 'dart:isolate';
 import 'dart:math';
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:draggable_scrollbar/draggable_scrollbar.dart';
 import 'package:flutter_html_view/html_parser.dart';
 import 'package:flutter_html_view/delegate/read_screen_page_delegate.dart';
+import 'package:flutter/scheduler.dart';
 
 /// 返回需要包装的组件
 typedef BuildTextSpanWidget = Widget Function(TextSpan textSpan);
@@ -95,6 +100,12 @@ class HtmlViewState extends State<HtmlView> {
   double _saveFontScale;
   double _saveLineSpace;
 
+  /// 是否加载数据
+  bool _isLoading = true;
+
+  /// 是否调用过加载方法
+  bool _isLoadingCallbackFinish = false;
+
   @override
   void initState() {
     super.initState();
@@ -138,6 +149,13 @@ class HtmlViewState extends State<HtmlView> {
 
       if (!isPreviewFont || !_isPageMode) {
         nodes = null;
+        _isLoading = true;
+        _isLoadingCallbackFinish = false;
+        if (_isPageMode) {
+          _pageController?.dispose();
+          _pageController = null;
+        }
+
         if (fontScale != null) {
           _saveFontScale = fontScale;
         }
@@ -180,6 +198,8 @@ class HtmlViewState extends State<HtmlView> {
           _pageController?.dispose();
           _pageController = null;
         }
+        _isLoading = true;
+        _isLoadingCallbackFinish = false;
         nodes = null;
       });
     }
@@ -209,6 +229,52 @@ class HtmlViewState extends State<HtmlView> {
     );
   }
 
+  /// 加载数据内容
+  Future<void> _loadingData() {
+    debugPrint('creating nodes... tails length: ${tails?.length}');
+    if (_isPageMode) {
+      nodes = List<TextSpan>();
+      _textSpanList.clear();
+    } else {
+      nodes = List<Widget>();
+    }
+    HtmlParser htmlParser = HtmlParser(
+      buildContext: context,
+      baseUrl: this.baseURL,
+      onLaunchFail: this.onLaunchFail,
+      fontFamily: this.fontFamily,
+      isForceSize: this.isForceSize,
+      fontScale: this.fontScale,
+      paragraphScale: this.lineSpace,
+      buildTextSpanWidget: widget.buildTextSpanWidget,
+      isPageMode: _isPageMode,
+    );
+
+    htmlParser.parseHTML(this.data, _isPageMode ? null : nodes, !_isPageMode ? null : nodes);
+
+    if (_isPageMode) {
+      int count = nodes.length;
+      int time = DateTime.now().millisecondsSinceEpoch;
+      debugPrint('$_tag 获得 书本内容数目: $count');
+      // 获得了所有的文案TextSpan ，进行计算
+      // y的偏移量，用来合成段落
+      List<Object> dataList = [0.0, null];
+      // 是否创建文本列表
+      for (int i = 0; i < count; ++i) {
+        var item = nodes[i];
+        if (item is TextSpan) {
+          dataList = _onMeasure(item, dataList[1], dataList[0]);
+        }
+      }
+      debugPrint('$_tag 完成图书所用时间 ：${DateTime.now().millisecondsSinceEpoch - time} ');
+    }
+
+    if (!_isPageMode && tails != null) {
+      nodes.addAll(tails);
+    }
+    return Future.value();
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -219,59 +285,46 @@ class HtmlViewState extends State<HtmlView> {
         }
 
         debugPrint('building HtmlView... _pageWidth : $_pageWidth, _pageHeight : $_pageHeight');
-        HtmlParser htmlParser = HtmlParser(
-          buildContext: context,
-          baseUrl: this.baseURL,
-          onLaunchFail: this.onLaunchFail,
-          fontFamily: this.fontFamily,
-          isForceSize: this.isForceSize,
-          fontScale: this.fontScale,
-          paragraphScale: this.lineSpace,
-          buildTextSpanWidget: widget.buildTextSpanWidget,
-          isPageMode: _isPageMode,
-        );
-
-        if (nodes == null) {
-          debugPrint('creating nodes... tails length: ${tails?.length}');
-          if (_isPageMode) {
-            nodes = List<TextSpan>();
-            _textSpanList.clear();
-          } else {
-            nodes = List<Widget>();
-          }
-
-          htmlParser.parseHTML(this.data, _isPageMode ? null : nodes, !_isPageMode ? null : nodes);
-
-          if (_isPageMode) {
-            int count = nodes.length;
-            int time = DateTime.now().millisecondsSinceEpoch;
-            debugPrint('$_tag 获得 书本内容数目: $count');
-            // 获得了所有的文案TextSpan ，进行计算
-            // y的偏移量，用来合成段落
-            List<Object> dataList = [0.0, null];
-            // 是否创建文本列表
-            for (int i = 0; i < count; ++i) {
-              var item = nodes[i];
-              if (item is TextSpan) {
-                dataList = _onMeasure(item, dataList[1], dataList[0]);
+        if (_isLoading) {
+          if (!_isLoadingCallbackFinish) {
+            _isLoadingCallbackFinish = true;
+            SchedulerBinding.instance.addPostFrameCallback((duration) {
+              if (widget.readScreenPageDelegate != null) {
+                widget.readScreenPageDelegate.onChangeLoadingState(true);
               }
-            }
-            debugPrint('$_tag 完成图书所用时间 ：${DateTime.now().millisecondsSinceEpoch - time} ');
+              Future.delayed(Duration(milliseconds: 200), () {
+                if (mounted) {
+                  _loadingData().then((_) {
+                    if (mounted) {
+                      setState(() {
+                        _isLoading = false;
+                        _isLoadingCallbackFinish = false;
+                        // 返回页数
+                        if (widget.readScreenPageDelegate != null) {
+                          widget.readScreenPageDelegate.onChangePageCount(_textSpanList.length);
+                        }
+                        if (_isPageMode) {
+                          SchedulerBinding.instance.addPostFrameCallback((duration) {
+                            widget.readScreenPageDelegate.onChangeLoadingState(false);
+                          });
+                        }
+                      });
+                    }
+                  });
+                }
+              });
+            });
           }
 
-          if (!_isPageMode && tails != null) {
-            nodes.addAll(tails);
-          }
-        }
-
-        if (_isPageMode) {
+          return Container(
+            width: double.infinity,
+            height: double.infinity,
+          );
+        } else if (_isPageMode) {
           // 页数
           int pageCount = _textSpanList.length;
           debugPrint('$_tag, 读书页数 : $pageCount');
-          // 返回页数
-          if (widget.readScreenPageDelegate != null) {
-            widget.readScreenPageDelegate.onChangePageCount(pageCount);
-          }
+
           //实际的页数 里面包含兼容问题偏移值 如果 _pageIndexProgress > 1 说明是兼容数据
           int pageIndex;
           if (_pageIndexProgress > 1) {
@@ -287,13 +340,20 @@ class HtmlViewState extends State<HtmlView> {
           }
 
           debugPrint('$_tag, 当前显示页数 : $pageIndex, progress : $_pageIndexProgress');
+
+          bool isLastChapter = widget.readScreenPageDelegate.isLastChapter();
+          bool isNextChapter = widget.readScreenPageDelegate.isNextChapter();
+
           if (_pageController == null) {
+            if (pageIndex == 0 && isLastChapter) {
+              pageIndex = 1;
+            } else if (pageIndex == pageCount - 1 && isNextChapter) {
+              pageIndex -= 1;
+            }
             _pageController = PageController(initialPage: pageIndex);
           }
 
           // pageCount 实际个数需要加上上一页和下一页的loading界面
-          bool isLastChapter = widget.readScreenPageDelegate.isLastChapter();
-          bool isNextChapter = widget.readScreenPageDelegate.isNextChapter();
 
           debugPrint('$_tag, isLastChapter : $isLastChapter, isNextChapter : $isNextChapter');
           pageCount = pageCount + (isLastChapter ? 1 : 0) + (isNextChapter ? 1 : 0);
@@ -320,9 +380,11 @@ class HtmlViewState extends State<HtmlView> {
                     tempTextSpanList.add(TextSpan(
                       text: tempTextSpan.text,
                       style: TextStyle(
-                        height: tempTextSpanStyle.height == null ? null : _isPreviewFont
-                            ? tempTextSpanStyle.height / _saveLineSpace * lineSpace
-                            : tempTextSpanStyle.height,
+                          height: tempTextSpanStyle.height == null
+                              ? null
+                              : _isPreviewFont
+                                  ? tempTextSpanStyle.height / _saveLineSpace * lineSpace
+                                  : tempTextSpanStyle.height,
                           fontFamily: tempTextSpanStyle.fontFamily,
                           color: color,
                           fontWeight: tempTextSpanStyle.fontWeight,
@@ -417,7 +479,7 @@ class HtmlViewState extends State<HtmlView> {
   /// 返回的数据0 为offsetY 1 为 childrenList 可能为空
   List<Object> _onMeasure(TextSpan textSpan, List<TextSpan> childrenTextSpanList, double offsetY) {
     if (childrenTextSpanList == null) {
-      debugPrint('$_tag 换页了 当前第 ${_textSpanList.length} 页');
+//      debugPrint('$_tag 换页了 当前第 ${_textSpanList.length} 页');
       childrenTextSpanList = [];
       _textSpanList.add(TextSpan(children: childrenTextSpanList));
     }
@@ -432,7 +494,7 @@ class HtmlViewState extends State<HtmlView> {
     String text = textSpan.text;
     if (_layout(text, textSpan.style, textPainter, offsetY)) {
       // 未超出
-      debugPrint('$_tag 当前页数能够放下这个数据 : $text, 返回偏移高度 ${offsetY + textPainter.size.height}');
+//      debugPrint('$_tag 当前页数能够放下这个数据 : $text, 返回偏移高度 ${offsetY + textPainter.size.height}');
       // 在这里添加\n 和 换行 补差
       childrenTextSpanList.add(TextSpan(text: '${textSpan.text}\n', style: textSpan.style));
       return [
@@ -450,35 +512,35 @@ class HtmlViewState extends State<HtmlView> {
 
       // 最多循环20次
       for (int i = 0; i < 20; i++) {
-        debugPrint('$_tag 当前页数放不下这个数据检查 i : $i , start : $start, end: $end, mid : $mid');
+//        debugPrint('$_tag 当前页数放不下这个数据检查 i : $i , start : $start, end: $end, mid : $mid');
         if (_layout(text.substring(0, _getLengthWithMid(textList, mid)), textSpan.style,
             textPainter, offsetY)) {
           if (mid <= start || mid >= end) {
             break;
           }
           // 未越界
-          debugPrint('$_tag 当前页数放不下未越界');
+//          debugPrint('$_tag 当前页数放不下未越界');
           start = mid;
           mid = (start + end) ~/ 2;
         } else {
           // 越界
-          debugPrint('$_tag 当前页数放不下越界');
+//          debugPrint('$_tag 当前页数放不下越界');
           end = mid;
           mid = (start + end) ~/ 2;
         }
       }
-      debugPrint('$_tag 当前页数放不下这个数据 : $text, start : $start, end: $end, mid : $mid');
-      debugPrint('$_tag 截取字数: $mid, 文案 ${text.substring(0, mid)}');
+//      debugPrint('$_tag 当前页数放不下这个数据 : $text, start : $start, end: $end, mid : $mid');
+//      debugPrint('$_tag 截取字数: $mid, 文案 ${text.substring(0, mid)}');
 
       int subTextIndex = _getLengthWithMid(textList, mid);
       String subText = text.substring(0, subTextIndex);
-      debugPrint('$_tag 截取修改查询文案 $subText');
+//      debugPrint('$_tag 截取修改查询文案 $subText');
       if (mid != 0) {
         childrenTextSpanList.add(TextSpan(text: subText, style: textSpan.style));
       }
 
       String otherText = text.substring(subTextIndex);
-      debugPrint('$_tag 剩余内容文案 : $otherText');
+//      debugPrint('$_tag 剩余内容文案 : $otherText');
       return _onMeasure(TextSpan(text: otherText.trim(), style: textSpan.style), null, 0);
     }
   }
@@ -497,8 +559,8 @@ class HtmlViewState extends State<HtmlView> {
 
   /// 是否超出边界
   bool _didExceed(TextPainter textPainter, double offsetY) {
-    debugPrint('$_tag 获得文字高度 : ${textPainter.size.height},'
-        ' offsetY: $offsetY, 剩余高度 ${_pageHeight - offsetY}');
+//    debugPrint('$_tag 获得文字高度 : ${textPainter.size.height},'
+//        ' offsetY: $offsetY, 剩余高度 ${_pageHeight - offsetY}');
     return textPainter.didExceedMaxLines || textPainter.size.height > _pageHeight - offsetY;
   }
 
