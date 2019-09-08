@@ -194,7 +194,7 @@ class HtmlViewState extends State<HtmlView> {
     if (mounted) {
       setState(() {
         this.data = data;
-        if (_isPageMode && pageIndexProgress >= 0) {
+        if (_isPageMode) {
           _pageController?.dispose();
           _pageController = null;
         }
@@ -419,7 +419,9 @@ class HtmlViewState extends State<HtmlView> {
                   // 加载下一张
                   widget.readScreenPageDelegate.toNextChapter();
                 } else {
-                  widget.readScreenPageDelegate.onSavePageIndex(index - (isLastChapter ? 1 : 0));
+                  int pageIndex = index - (isLastChapter ? 1 : 0);
+                  widget.readScreenPageDelegate.onSavePageIndex(pageIndex);
+                  _pageIndexProgress = pageIndex / pageCount;
                 }
               },
               itemCount: pageCount,
