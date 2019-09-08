@@ -198,6 +198,9 @@ class HtmlViewState extends State<HtmlView> {
           _pageController?.dispose();
           _pageController = null;
         }
+        if (pageIndexProgress >= 0) {
+          _pageIndexProgress = pageIndexProgress;
+        }
         _isLoading = true;
         _isLoadingCallbackFinish = false;
         nodes = null;
@@ -327,7 +330,7 @@ class HtmlViewState extends State<HtmlView> {
 
           //实际的页数 里面包含兼容问题偏移值 如果 _pageIndexProgress > 1 说明是兼容数据
           int pageIndex;
-          if (_pageIndexProgress > 1) {
+          if (_pageIndexProgress > 1.0) {
             // 这里是兼容数据 _pageIndexProgress 值代表滑动距离 用互动距离 / 文字高度 约等于 当前值
             int tempIndex = (_pageIndexProgress / _pageHeight).round();
             if (tempIndex > pageCount - 1) {
