@@ -475,7 +475,6 @@ class HtmlViewState extends State<HtmlView> {
           }
 
           return Container(
-            color: Colors.red,
             child: PageView.builder(
               controller: _pageController,
               itemBuilder: (context, index) {
@@ -586,13 +585,6 @@ class HtmlViewState extends State<HtmlView> {
 //                              }
 //                            }
                           },
-                        ),
-                      ),
-                      Text(
-                        textTemp ?? ' ',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
                         ),
                       ),
                       // 左边拖动条
