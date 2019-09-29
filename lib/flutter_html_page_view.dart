@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_html_view/html_parser.dart';
 import 'package:flutter_html_view/delegate/read_screen_page_delegate.dart';
@@ -135,6 +136,7 @@ class HtmlViewState extends State<HtmlView> {
   void dispose() {
     super.dispose();
     _pageController?.dispose();
+    _pageController = null;
   }
 
   /// 改变
@@ -154,8 +156,8 @@ class HtmlViewState extends State<HtmlView> {
       nodes = null;
       if (_isPageMode) {
         _pageController?.dispose();
-        _pageController = null;
       }
+      _pageController = null;
 
       if (fontScale != null) {
         _saveFontScale = fontScale;
@@ -173,6 +175,7 @@ class HtmlViewState extends State<HtmlView> {
     });
   }
 
+
   /// 调转page方法
   void onChangePageIndex(int index) {
     debugPrint('$_tag 需要跳转到: $index, 实际跳转为 ${_getPageIndexCheckChapter(index)}');
@@ -185,8 +188,9 @@ class HtmlViewState extends State<HtmlView> {
         this.data = data;
         if (_isPageMode) {
           _pageController?.dispose();
-          _pageController = null;
         }
+        _pageController = null;
+
         if (pageIndexProgress >= 0) {
           _pageIndexProgress = pageIndexProgress;
         }
@@ -233,7 +237,7 @@ class HtmlViewState extends State<HtmlView> {
         );
         painter.layout(maxWidth: _pageWidth);
         _fontHeightMap.putIfAbsent(temp, () => painter.width /* + 0.5*/);
-        debugPrint('$_tag, 未找到的字符 $temp, with : ${painter.width}');
+//        debugPrint('$_tag, 未找到的字符 $temp, with : ${painter.width}');
         width += painter.width;
       }
     }
@@ -465,19 +469,29 @@ class HtmlViewState extends State<HtmlView> {
           pageCount = pageCount + (isLastChapter ? 1 : 0) + (isNextChapter ? 1 : 0);
           debugPrint('$_tag, 实际读书页数 加上上一页下一页 : $pageCount');
 
+          debugPrint('$_tag, _pageController is Null : ${_pageController == null}');
           if (_pageController == null) {
             if (pageIndex == 0 && isLastChapter) {
               pageIndex = 1;
             } else if (pageIndex == pageCount - 1 && isNextChapter) {
               pageIndex -= 1;
             }
+
+            debugPrint('$_tag, pageIndex : $pageIndex');
+
             _pageController = PageController(initialPage: pageIndex);
+
+            SchedulerBinding.instance.addPostFrameCallback((duration) {
+              _pageController.jumpToPage(pageIndex);
+            });
+
           }
 
           return Container(
             child: PageView.builder(
               controller: _pageController,
               itemBuilder: (context, index) {
+                debugPrint('$_tag, 创建index : $index');
                 if (index == 0 && isLastChapter || index == pageCount - 1 && isNextChapter) {
                   // 加载视图
                   return _getPlatformLoadingIndicator(context);
@@ -575,7 +589,7 @@ class HtmlViewState extends State<HtmlView> {
                                 ifAbsent: () => wordRectList);
 //                            int rowCount = _wordRectList.length;
 //                            debugPrint('$_tag, 总共有 $rowCount行文字');
-//                            for (int i = 0; i < rowCount; ++i) {
+//                            for (int i = 0; i < rowCount; ++i) 获得左右 {
 //                              List<WordData> wordDataList = _wordRectList[i];
 //                              int columnCount = wordDataList.length;
 //                              debugPrint('$_tag, 第 $i 行文字 有 $columnCount 个单词');
@@ -659,7 +673,6 @@ class HtmlViewState extends State<HtmlView> {
                 }
               },
               onPageChanged: (index) {
-                debugPrint('$_tag, 获得词典切换 index : $index');
                 if (index == 0 && isLastChapter) {
                   // 加载上一张
                   widget.readScreenPageDelegate.toLastChapter();
@@ -1027,7 +1040,7 @@ class HtmlViewState extends State<HtmlView> {
       marginLeft = 0;
     }
 
-    debugPrint('$_tag, 获得左右 ? $isLeft , marginLeft : $marginLeft, marginTop : $marginTop');
+//    debugPrint('$_tag, 获得左右 ? $isLeft , marginLeft : $marginLeft, marginTop : $marginTop');
 
     return Offstage(
       offstage: isOffstage,
