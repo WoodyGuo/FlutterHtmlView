@@ -175,7 +175,6 @@ class HtmlViewState extends State<HtmlView> {
     });
   }
 
-
   /// 调转page方法
   void onChangePageIndex(int index) {
     debugPrint('$_tag 需要跳转到: $index, 实际跳转为 ${_getPageIndexCheckChapter(index)}');
@@ -484,7 +483,6 @@ class HtmlViewState extends State<HtmlView> {
             SchedulerBinding.instance.addPostFrameCallback((duration) {
               _pageController.jumpToPage(pageIndex);
             });
-
           }
 
           return Container(
@@ -535,7 +533,7 @@ class HtmlViewState extends State<HtmlView> {
                           _setSelectedWordDataToBookWidget(
                               index, [findWordData.wordRect], false, bookViewWidgetKey);
 
-                          toolBarWidgetKey.currentState._setToolBarDisplay(false, null);
+                          toolBarWidgetKey.currentState._setToolBarDisplay(false, null, null);
 
                           if (widget.onSelectedStringCallback != null) {
                             widget.onSelectedStringCallback(findWordData.text);
@@ -563,8 +561,10 @@ class HtmlViewState extends State<HtmlView> {
                           _updateLongPress(index, details.localPosition.dx,
                               details.localPosition.dy, bookViewWidgetKey,
                               isSave: true);
-                          toolBarWidgetKey.currentState
-                              ._setToolBarDisplay(true, _lightRectMap[index][0]);
+                          toolBarWidgetKey.currentState._setToolBarDisplay(
+                              true,
+                              _lightRectMap[index][0],
+                              _lightRectMap[index][_lightRectMap[index].length - 1]);
 
                           setState(() {});
                         },
@@ -611,6 +611,9 @@ class HtmlViewState extends State<HtmlView> {
                           isDisplay: _isSelectedModeMap[index] ?? false,
                           lightWordStartRect:
                               _lightRectMap[index] == null ? null : _lightRectMap[index][0],
+                          lightWordEndRect: _lightRectMap[index] == null
+                              ? null
+                              : _lightRectMap[index][_lightRectMap[index].length - 1],
                           toolBarClickTypeCallback: (toolBarClickType) {
                             // 现将数据取出来
                             // 首先获得第一行第一个单词
@@ -832,7 +835,7 @@ class HtmlViewState extends State<HtmlView> {
     Point minPoint;
     Point maxPoint;
 
-    toolBarWidgetKey.currentState._setToolBarDisplay(false, null);
+    toolBarWidgetKey.currentState._setToolBarDisplay(false, null, null);
     if (isLeft) {
       // 左边最小可以到0 ， 0, 最大可以到最后的 前一个
       Rect rect = _lightRectMap[index][_lightRectMap[index].length - 1];
@@ -1007,7 +1010,7 @@ class HtmlViewState extends State<HtmlView> {
           rect.add(saveRect);
         }
       }
-      toolBarWidgetKey.currentState._setToolBarDisplay(true, rect[0]);
+      toolBarWidgetKey.currentState._setToolBarDisplay(true, rect[0], rect[rect.length - 1]);
     }
   }
 
@@ -1206,6 +1209,7 @@ class _ToolBarWidget extends StatefulWidget {
   _ToolBarWidget(
       {@required this.isDisplay,
       @required this.lightWordStartRect,
+      @required this.lightWordEndRect,
       @required this.toolBarClickTypeCallback,
       key: Key})
       : super(key: key);
@@ -1218,6 +1222,9 @@ class _ToolBarWidget extends StatefulWidget {
 
   /// 第一行位置，用来确定菜单位置
   final Rect lightWordStartRect;
+
+  /// 最后一行的位置
+  final Rect lightWordEndRect;
 
   @override
   State<StatefulWidget> createState() {
@@ -1233,10 +1240,14 @@ class _ToolBarWidgetState extends State<_ToolBarWidget> {
   /// 第一行位置，用来确定菜单位置
   Rect _lightWordStartRect;
 
+  /// 最后一行位置
+  Rect _lightWordEndRect;
+
   @override
   void initState() {
     _isDisplay = widget.isDisplay;
     _lightWordStartRect = widget.lightWordStartRect;
+    _lightWordEndRect = widget.lightWordEndRect;
     super.initState();
   }
 
@@ -1247,16 +1258,18 @@ class _ToolBarWidgetState extends State<_ToolBarWidget> {
       setState(() {
         _isDisplay = widget.isDisplay;
         _lightWordStartRect = widget.lightWordStartRect;
+        _lightWordEndRect = widget.lightWordEndRect;
       });
     }
   }
 
   /// 设置菜单内容
-  void _setToolBarDisplay(bool isDisplay, Rect lightWordStartRect) {
+  void _setToolBarDisplay(bool isDisplay, Rect lightWordStartRect, Rect lightWordEndRect) {
     if (_isDisplay != isDisplay) {
       setState(() {
         _isDisplay = isDisplay;
         _lightWordStartRect = lightWordStartRect;
+        _lightWordEndRect = lightWordEndRect;
       });
     }
   }
@@ -1298,39 +1311,51 @@ class _ToolBarWidgetState extends State<_ToolBarWidget> {
         marginTop = centerTop.dy - toolBarHeight;
       }
 
+      bool isDisplayToolBottom = marginTop < 0;
+      if (isDisplayToolBottom) {
+        Offset centerBottom = _lightWordEndRect.bottomCenter;
+        marginLeft = math.max(0, centerBottom.dx - toolBarWidth / 2);
+        marginTop = centerBottom.dy + offsetMarginTop;
+      }
+
+      var columnChildren = <Widget>[
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: Container(
+            width: toolBarWidth,
+            height: buttonHeight,
+            color: Color(0xFF3A3A3C),
+            child: Row(
+              children: <Widget>[
+                // 翻译按钮
+                Expanded(
+                  child: _getButtonWidget('翻译', _ToolBarClickType.translateType),
+                ),
+                // 分割线
+                _getSplitLineWidget(splitLineWidth, splitLineHeight),
+                // 复制按钮
+                Expanded(
+                  child: _getButtonWidget('复制', _ToolBarClickType.copyType),
+                ),
+              ],
+            ),
+          ),
+        )
+      ];
+
+      columnChildren.insert(
+          isDisplayToolBottom ? 0 : 1,
+          CustomPaint(
+            size: Size(triangleWidth, triangleHeight),
+            painter: TrianglePainter(isDown: !isDisplayToolBottom),
+          ));
+
       return Container(
         margin: EdgeInsets.only(left: marginLeft, top: marginTop),
         width: toolBarWidth,
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: Container(
-                width: toolBarWidth,
-                height: buttonHeight,
-                color: Color(0xFF3A3A3C),
-                child: Row(
-                  children: <Widget>[
-                    // 翻译按钮
-                    Expanded(
-                      child: _getButtonWidget('翻译', _ToolBarClickType.translateType),
-                    ),
-                    // 分割线
-                    _getSplitLineWidget(splitLineWidth, splitLineHeight),
-                    // 复制按钮
-                    Expanded(
-                      child: _getButtonWidget('复制', _ToolBarClickType.copyType),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            CustomPaint(
-              size: Size(triangleWidth, triangleHeight),
-              painter: TrianglePainter(),
-            )
-          ],
+          children: columnChildren,
         ),
       );
     }
