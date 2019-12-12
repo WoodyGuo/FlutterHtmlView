@@ -11,7 +11,7 @@ dependencies:
   html: ^0.13.3+3
   video_player:
     path: ../plugins/packages/video_player
-  cached_network_image: ^0.8.0
+  cached_network_image: ^2.0.0-rc
   draggable_scrollbar: "^0.0.4"
 
 
