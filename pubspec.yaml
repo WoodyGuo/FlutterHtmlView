@@ -10,7 +10,7 @@ dependencies:
   flutter_custom_tabs: "^0.6.0"
   html: ^0.13.3+3
   video_player:
-    path: ../plugins/packages/video_player
+    path: ../plugins/packages/video_player/video_player
   cached_network_image: ^2.0.0-rc
   draggable_scrollbar: "^0.0.4"
 
