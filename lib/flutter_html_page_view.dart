@@ -658,11 +658,13 @@ class HtmlViewState extends State<HtmlView> {
 
                             switch (toolBarClickType) {
                               case _ToolBarClickType.copyType:
-                                Clipboard.setData(new ClipboardData(text: selectWord.trim()));
+                                if (selectWord != null) {
+                                  Clipboard.setData(new ClipboardData(text: selectWord?.trim()));
+                                }
                                 break;
                               case _ToolBarClickType.translateType:
                                 if (widget.onSelectedStringCallback != null) {
-                                  widget.onSelectedStringCallback(selectWord.trim());
+                                  widget.onSelectedStringCallback(selectWord?.trim());
                                 }
                                 break;
                               default:
